@@ -1,0 +1,96 @@
+!!!
+%html
+  %head
+    %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %script{:src => "https://apis.google.com/js/api.js"}
+    %script(src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous")
+
+    :css
+      img#results {
+        width: 100%;
+        max-width: 600px;
+      }
+
+      .results-container {
+        position: relative;
+      }
+
+      .results-container .square {
+        position: absolute;
+        border: 1px solid yellow;
+      }
+
+
+    :javascript
+      function start() {
+        console.log('Google client started');
+      }
+
+      // Loads the JavaScript client library and invokes `start` afterwards.
+      gapi.load('client', start);
+  %body
+    %form
+      %input{ type: "file", id: "file" }
+
+    .results-container
+      %img#results
+
+    :javascript
+      function extractTextFromImage(fileContents) {
+        // Initializes the client with the API key and the Translate API.
+        gapi.client.init({
+          'apiKey': '#{google_api_key}',
+          'discoveryDocs': ['https://vision.googleapis.com/$discovery/rest?version=v1'],
+        }).then(function() {
+          var contents = fileContents;
+
+          if (contents.includes('data:image/jpeg;base64,')) {
+            contents = contents.replace("data:image/jpeg;base64,", "")
+          } else {
+            contents = contents.replace("data:image/png;base64,", "")
+          }
+
+          // Executes an API request, and returns a Promise.
+          // The method name `language.translations.list` comes from the API discovery.
+          return gapi.client.vision.images.annotate({
+            requests: [{
+              features: {
+                "type": "TEXT_DETECTION",
+                "maxResults": 200,
+              },
+              image: { content: contents }
+            }]
+          });
+        }).then(function(response) {
+          var annotations = response.result.responses[0]
+          var textAnnotations = annotations.textAnnotations;
+          var $resultsContainer = $('.results-container');
+
+          console.log(response);
+
+        }, function(reason) {
+          console.log('Error: ' + reason.result.error.message);
+        });
+      };
+
+      function onUpload() {
+        var file = document.getElementById('file').files[0];
+        var reader = new FileReader();
+
+        reader.addEventListener("load", function () {
+          $("img#results").attr("src", this.result);
+          console.log(this.result);
+          extractTextFromImage(this.result);
+        });
+
+        reader.addEventListener("error", function (error) {
+          console.log(error);
+        });
+
+        reader.readAsDataURL(file);
+      };
+
+      $(document).ready(function () {
+        console.log('asdfom');
+        $('#file').change(onUpload);
+      });
